@@ -33,6 +33,52 @@ existing one. The folder name is the animation's identity, so:
 If you are contributing here, add your animation as a new folder rather than
 editing someone else's.
 
+## Choosing which animation is current
+
+A repository can hold many animations. To say which one the display plays, put a
+`config.json` at the repo root:
+
+```json
+{
+  "active": "bird",
+  "only_active": false
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `active` | the folder name of the animation to play. Change this one line to switch. |
+| `only_active` | `true` = the device keeps only the active animation rather than every one in the repo. Useful when a repo holds hundreds. |
+
+The device reads this file when it fetches, so **editing it on GitHub is how you
+change the animation** — no cable, and no tapping through a list.
+
+- A plain text file containing just the folder name also works, if you would
+  rather not write JSON.
+- Omit `active` to let the device decide for itself (its own setting, or the KUAL
+  "Next animation" action).
+- If `active` names a folder that does not exist, the device logs a warning and
+  falls back rather than breaking. A stale name never wins.
+
+This takes precedence over the device's own setting, so that editing the file has
+a visible effect. Remove `active` to hand control back to the device.
+
+### With very many animations
+
+`only_active: true` stops the device filling up with art it is not playing — but
+the whole repository is still downloaded each time, so thousands of animations
+means a large download.
+
+For that case, serve the frames individually instead. Set `ART_RAW_BASE` on the
+device to the repository root:
+
+```sh
+ART_RAW_BASE="https://raw.githubusercontent.com/you/kindle-screensaver/main"
+```
+
+Then only the active animation's frames are fetched — a few kilobytes, however
+many animations the repo holds. `config.json` still decides which one.
+
 ## manifest.json
 
 ```json

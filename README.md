@@ -14,6 +14,7 @@ read that first.**
 | Path | What it is |
 |---|---|
 | [`FORMAT.md`](FORMAT.md) | the format spec — start here |
+| [`config.json`](config.json) | **which animation is current** — edit `"active"` to switch |
 | [`bird/`](bird) | a worked example: 8 frames, 420×320, drawn at (90, 240) |
 | `tools/make-animation.ps1` | turn a GIF or a folder of images into a valid frame set |
 | `tools/check-artwork.ps1` | validate a set before sharing it |
@@ -22,6 +23,11 @@ read that first.**
 adding a new one never replaces an existing one. The folder name is the
 animation's identity, so a new folder name is a new animation, and reusing an
 existing name updates that one. Add yours as a new folder.
+
+To change which one plays, edit `"active"` in `config.json`. That is the intended
+way once there are more than a few: it is one line on GitHub instead of tapping
+through a list on the device. See [FORMAT.md](FORMAT.md) for the details, and for
+`only_active` when a repo holds very many animations.
 
 ## Make your own
 
