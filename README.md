@@ -18,6 +18,11 @@ read that first.**
 | `tools/make-animation.ps1` | turn a GIF or a folder of images into a valid frame set |
 | `tools/check-artwork.ps1` | validate a set before sharing it |
 
+**Each folder is a separate animation, and they all coexist** on the device —
+adding a new one never replaces an existing one. The folder name is the
+animation's identity, so a new folder name is a new animation, and reusing an
+existing name updates that one. Add yours as a new folder.
+
 ## Make your own
 
 **1. Read [FORMAT.md](FORMAT.md).** The short version: pure 1-bit black and white,

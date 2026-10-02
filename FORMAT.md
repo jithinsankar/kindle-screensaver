@@ -23,6 +23,16 @@ myanimation/
 The folder name becomes the animation's name. Put it under `artwork/` in this
 project and the dashboard picks it up.
 
+**A repository can hold several animations at once.** Each folder is a separate
+animation, and they coexist on the device — adding a new folder never replaces an
+existing one. The folder name is the animation's identity, so:
+
+- a new folder name is a **new animation**
+- reusing an existing folder name **updates** that animation
+
+If you are contributing here, add your animation as a new folder rather than
+editing someone else's.
+
 ## manifest.json
 
 ```json
