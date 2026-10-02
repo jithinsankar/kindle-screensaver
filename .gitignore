@@ -1,0 +1,6 @@
+# OS / editor noise. Everything else in here is part of the format and
+# SHOULD be committed -- including manifest.json and preview.png.
+Thumbs.db
+desktop.ini
+*.swp
+.DS_Store
