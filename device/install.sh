@@ -6,6 +6,7 @@
 #     sh /mnt/us/dashboard/install.sh --no-start   install only
 #     sh /mnt/us/dashboard/install.sh --autostart  also start on every boot
 #     sh /mnt/us/dashboard/install.sh --no-autostart  remove boot autostart
+#     sh /mnt/us/dashboard/install.sh --toggle-autostart  flip it either way
 #
 #  Nothing in here touches your stock screensaver images or any file outside
 #  /mnt/us/dashboard, /mnt/us/extensions/dashboard and (optionally)
@@ -20,16 +21,28 @@ DASH_DIR=$(dirname "$0")
 . "$DASH_DIR/lib/util.sh"
 
 EXT_DIR="/mnt/us/extensions/dashboard"
-UPSTART_JOB="/etc/upstart/dashboard.conf"
+# UPSTART_JOB comes from lib/util.sh so that install.sh and the KUAL toggle
+# cannot end up pointing at different files.
 
 DO_START=1
 DO_AUTOSTART=""
+# Only meaningful with --toggle-autostart, but initialised here because `set -u`
+# is on and the autostart block reads it unconditionally.
+AUTOSTART_WAS=""
 for a in "$@"; do
     case "$a" in
         --no-start)     DO_START=0 ;;
         --start)        DO_START=1 ;;
         --autostart)    DO_AUTOSTART=1 ;;
         --no-autostart) DO_AUTOSTART=0 ;;
+        # A toggle keeps the KUAL menu to ONE entry instead of two, and the menu
+        # cannot label an entry with its current state. The upstart job's
+        # presence IS the state, so ask it rather than tracking a flag that could
+        # drift out of step with the filesystem.
+        --toggle-autostart)
+            if autostart_enabled; then DO_AUTOSTART=0; else DO_AUTOSTART=1; fi
+            AUTOSTART_WAS=$( [ "$DO_AUTOSTART" = "1" ] && echo off || echo on )
+            ;;
         *) echo "unknown option: $a"; exit 2 ;;
     esac
 done
@@ -102,6 +115,11 @@ EOF
         fi
         initctl reload-configuration 2>/dev/null || initctl reload 2>/dev/null
         mntroot ro 2>/dev/null
+        # Say what the state IS, not just what changed -- this is what the KUAL
+        # entry shows on screen, and it is the only feedback the user gets.
+        if [ -n "$AUTOSTART_WAS" ]; then
+            echo "   boot autostart: $AUTOSTART_WAS -> $( [ "$DO_AUTOSTART" = "1" ] && echo ON || echo off )"
+        fi
     else
         echo "   !! mntroot rw failed; autostart not changed"
     fi

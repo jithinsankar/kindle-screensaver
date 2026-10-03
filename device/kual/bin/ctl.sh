@@ -42,6 +42,11 @@ case "$1" in
     autostart-off)
         run_and_show sh "$DASH/install.sh" --no-start --no-autostart
         ;;
+    autostart-toggle)
+        # One menu entry instead of two, and the output names the resulting
+        # state -- the menu label itself cannot show on/off.
+        run_and_show sh "$DASH/install.sh" --no-start --toggle-autostart
+        ;;
     probe)
         run_and_show sh "$DASH/dashboard.sh" probe
         ;;

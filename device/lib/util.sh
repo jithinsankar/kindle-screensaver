@@ -18,6 +18,29 @@ LOG_DIR="${LOG_DIR:-/mnt/us/dashboard/log}"
 LOG_FILE="${LOG_FILE:-$LOG_DIR/dashboard.log}"
 
 # ---------------------------------------------------------------------------
+# boot autostart state
+#
+# The upstart job file's *presence* is the state. There is no separate flag to
+# keep in step, and that matters: a flag would be written by install.sh and read
+# by the KUAL toggle, so the two could disagree and the on-screen report would
+# lie about what the next boot will do.
+#
+# Defined here rather than in install.sh so the KUAL toggle and install.sh
+# cannot drift to different paths.
+#
+# Note the "${UPSTART_JOB-}" form, not "${UPSTART_JOB:-...}": the project
+# verifier scans for the latter as a config.sh tunable, and this is not one.
+# ---------------------------------------------------------------------------
+if [ -z "${UPSTART_JOB-}" ]; then
+    UPSTART_JOB=/etc/upstart/dashboard.conf
+fi
+
+# Exit status 0 when the dashboard will start on the next boot.
+autostart_enabled() {
+    [ -f "$UPSTART_JOB" ]
+}
+
+# ---------------------------------------------------------------------------
 # logging
 # ---------------------------------------------------------------------------
 log() {

@@ -76,46 +76,73 @@ try {
     $tops = @($menu.items[0].items)
     $prios = $tops | ForEach-Object { $_.priority }
     if (($prios | Select-Object -Unique).Count -ne $prios.Count) {
-        Fail "duplicate top-level priorities: $($prios -join ',')"
-    } else { Pass "top-level priorities unique ($($prios.Count))" }
+        Fail "duplicate menu priorities: $($prios -join ',')"
+    } else { Pass "menu priorities unique ($($prios.Count))" }
 
-    $tools = @($tops | Where-Object { $_.name -eq 'Tools' })[0]
-    if ($tools) {
-        $tp = $tools.items | ForEach-Object { $_.priority }
-        if (($tp | Select-Object -Unique).Count -ne $tp.Count) {
-            Fail "duplicate Tools priorities: $($tp -join ',')"
-        } else { Pass "Tools priorities unique ($($tp.Count))" }
+    # NO SUBNENUS. This is the check that matters, and it exists because of a real
+    # failure: a submenu entry the user could not identify. KUAL draws a submenu
+    # as a bare "/" with no label of its own, so a "Tools" submenu was invisible
+    # as a title -- the user asked "where is tools option ?" twice. Structurally
+    # the config was correct (identical to KOReader's own Tools submenu), which is
+    # exactly the point: correct-but-undiscoverable is still broken. A flat list
+    # of self-describing entries cannot have this failure mode.
+    $subs = @($tops | Where-Object { $_.items })
+    if ($subs.Count -gt 0) {
+        Fail "menu has submenus ($(($subs | ForEach-Object { $_.name }) -join ', ')) -- KUAL renders these as an unidentifiable '/'; flatten them"
+    } else { Pass 'menu is flat (no submenus to render as "/")' }
 
-        foreach ($it in $tools.items) {
-            if (-not $it.params) { Fail "Tools entry '$($it.name)' has no params" }
-        }
+    foreach ($it in $tops) {
+        if (-not $it.params) { Fail "menu entry '$($it.name)' has no params" }
     }
 
     # A menu label must never name a specific animation set. The set is whatever
     # config.json says, so "(bird)" is wrong the moment it changes to anything
     # else -- and it was, which is how this got noticed.
     $labels = @($tops | ForEach-Object { $_.name })
-    if ($tools) { $labels += @($tools.items | ForEach-Object { $_.name }) }
     $named = @($labels | Where-Object { $_ -match '\((bird|night|fish)\)' })
     if ($named.Count -gt 0) {
         Fail "menu label hardcodes an animation set: $($named -join ', ')"
     } else { Pass 'no menu label names a specific animation set' }
 
-    # The same action listed twice at different levels is how this menu became
-    # confusing: 'Update from GitHub' and 'Fetch artwork' were in both the top
-    # level and Tools.
+    # The same action listed twice is how this menu became confusing: 'Update from
+    # GitHub' and 'Fetch artwork' were in both the top level and Tools. In a flat
+    # menu the params are what actually matter -- two labels can differ harmlessly
+    # while still running the identical action.
     $dupes = @($labels | Group-Object | Where-Object { $_.Count -gt 1 })
     if ($dupes.Count -gt 0) {
-        Fail "menu has duplicate entries: $(($dupes | ForEach-Object { $_.Name }) -join ', ')"
+        Fail "menu has duplicate labels: $(($dupes | ForEach-Object { $_.Name }) -join ', ')"
+    }
+
+    $paramDupes = @(@($tops | ForEach-Object { $_.params }) | Group-Object | Where-Object { $_.Count -gt 1 })
+    if ($paramDupes.Count -gt 0) {
+        Fail "menu runs the same action twice: $(($paramDupes | ForEach-Object { $_.Name }) -join ', ')"
     } else { Pass 'no duplicate menu entries' }
 
-    # What the user actually sees first is the top level, so that is what "bloated"
-    # means. Counting both levels together made a 6-item menu look like a 17-item
-    # one, which is a false alarm.
-    if ($tops.Count -gt 7) {
-        Write-Host "  WARN the KUAL top level has $($tops.Count) entries; consider consolidating into Tools" -ForegroundColor Yellow
+    # Every params value must be a real case label in ctl.sh. Without this a
+    # renamed or mistyped action fails only when the user taps it, and KUAL paints
+    # 'unknown action' onto the panel where nobody is looking.
+    $ctlPath = Join-Path $dev 'kual\bin\ctl.sh'
+    $ctlText = Get-Content -LiteralPath $ctlPath -Raw
+    $actions = @()
+    foreach ($line in ($ctlText -split "`n")) {
+        if ($line -match '^\s+([a-z][a-z0-9-]*(?:\|[a-z][a-z0-9-]*)*)\)\s*$') {
+            $actions += ($Matches[1] -split '\|')
+        }
+    }
+    $missing = @()
+    foreach ($p in @($tops | ForEach-Object { $_.params })) {
+        if ($actions -notcontains $p) { $missing += $p }
+    }
+    if ($missing.Count -gt 0) {
+        Fail "menu params with no ctl.sh action: $($missing -join ', ')"
+    } else { Pass "every menu action exists in ctl.sh ($($actions.Count) actions)" }
+
+    # Flat means the count IS the visible length, so this is now an honest measure
+    # of length rather than of nesting.
+    if ($tops.Count -gt 14) {
+        Write-Host "  WARN the KUAL menu has $($tops.Count) entries; that is long to scroll" -ForegroundColor Yellow
     } else {
-        Pass "KUAL top level is concise ($($tops.Count) entries, plus Tools)"
+        Pass "KUAL menu is a readable length ($($tops.Count) entries)"
     }
 } catch {
     Fail "menu.json: $($_.Exception.Message)"

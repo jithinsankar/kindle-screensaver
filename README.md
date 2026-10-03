@@ -92,10 +92,39 @@ on Wi-Fi it will show `—` for the weather until it can reach the internet.
 | **Stop and get the Kindle UI back** | **Tap the screen 3 times quickly** (or KUAL → Dashboard → Stop) |
 | Redraw immediately | KUAL → Dashboard → **Redraw now** |
 | Change cities, units, sizes | edit `dashboard/config.sh`, then **Restart** |
-| Check it's healthy | KUAL → Dashboard → Tools → **Show status on screen** |
-| Something is mispositioned | Tools → **Show geometry on screen** |
-| Run it automatically after boot | Tools → **Enable boot autostart** |
-| Push a change from your PC | Tools → **Update from GitHub** (see below) |
+| Check it's healthy | KUAL → Dashboard → **Show status on screen** |
+| Run it automatically after boot | KUAL → Dashboard → **Toggle boot autostart** |
+| Push a change from your PC | KUAL → Dashboard → **Update from GitHub** (see below) |
+
+Every Dashboard entry is at one level — there are no submenus to hunt through.
+The two diagnostic modes (`probe`, `geo`) are deliberately not in the menu
+because they are for tuning, not daily use; run them from a shell:
+`sh /mnt/us/dashboard/dashboard.sh probe`
+
+### The whole KUAL menu
+
+One flat list, in this order, so nothing is hidden behind a submenu:
+
+| # | Entry | What it does |
+|---|---|---|
+| 1 | Start (show clock + weather) | takes the screen and runs the dashboard |
+| 2 | Stop (restore Kindle UI) | gives the screen back to the Kindle |
+| 3 | Restart | stop, then start |
+| 4 | Redraw now | draws one frame and exits |
+| 5 | Start animation | plays the active animation until you tap 3× |
+| 6 | Next animation | switches to the next installed set |
+| 7 | Show animations | lists the installed sets, marking the active one |
+| 8 | Show status on screen | is it running, which set, which font resolved |
+| 9 | Update from GitHub | pulls the project's `code` branch and reinstalls |
+| 10 | Fetch artwork from URL | pulls `ART_URL` and installs any animation sets |
+| 11 | Install / refresh files | re-copies files and re-enables KUAL entries |
+| 12 | Toggle boot autostart | flips autostart on/off and reports the new state |
+| 13 | Uninstall (restore wallpaper) | stops it and removes every installed file |
+
+Entries 9–12 are the ones you use after changing something on your PC.
+They paint their output straight onto the eInk panel, because KUAL gives the
+extension no console.
+
 
 ### Getting back to the Kindle UI
 
@@ -133,7 +162,7 @@ frozen. If you cannot reach KUAL:
 Nothing in this project modifies your screensaver wallpapers (`bg_ss*.png`,
 `bg_kids_*.png`) or any other stock file, so reverting is simply:
 
-**KUAL → Dashboard → Tools → Uninstall (restore wallpaper)**
+**KUAL → Dashboard → Uninstall (restore wallpaper)**
 
 That will:
 
@@ -196,7 +225,8 @@ the date and the clock cannot collide however the font's metrics work out. Set
 `MEASURE_LAYOUT=0` to fall back to a plain `px × FALLBACK_LINE_FACTOR` estimate
 if a firmware ever refuses `-E`.
 
-If something is still mispositioned, run **Tools → Show geometry on screen**.
+If something is still mispositioned, run `sh /mnt/us/dashboard/dashboard.sh geo`
+(`dashboard.sh probe` also exists; neither is in the KUAL menu).
 It prints the raw `next_top` and `bbox_height` fbink reports at each font size,
 which is the ground truth for adjusting `DATE_TOP`, `CLOCK_GAP` and the card
 tops — rather than guessing.
@@ -466,7 +496,7 @@ The folder name is the artwork's identity:
   revise one you already have
 
 The fetch installs *every* set it finds in the repo, so putting `bird/` and
-`fish/` in the same repository gives you both on the Kindle. Nothing is ever
+`night/` in the same repository gives you both on the Kindle. Nothing is ever
 deleted.
 
 To choose which one plays, any of these:
@@ -474,10 +504,10 @@ To choose which one plays, any of these:
 | How | Notes |
 |---|---|
 | **edit `"active"` in the repo's `config.json`** | **the intended way** — one line on GitHub, no cable, no tapping. Scales to hundreds of animations |
-| **KUAL → Dashboard → Tools → Next animation** | steps through the installed sets and shows the name |
-| **KUAL → Dashboard → Tools → Show animations** | lists what is installed and which is active |
-| `sh /mnt/us/dashboard/dashboard.sh use fish` | set it explicitly |
-| `ANIM_SET="fish"` in `config.sh` | the device default, used when nothing overrides it |
+| **KUAL → Dashboard → Next animation** | steps through the installed sets and shows the name |
+| **KUAL → Dashboard → Show animations** | lists what is installed and which is active |
+| `sh /mnt/us/dashboard/dashboard.sh use night` | set it explicitly |
+| `ANIM_SET="night"` in `config.sh` | the device default, used when nothing overrides it |
 
 The repo's `config.json` **wins** over the device's own choice, so editing it has a
 visible effect. Remove `active` from it to hand control back to the device. A name
@@ -575,7 +605,7 @@ says why.
 
 **Blank or partially drawn screen.**
 Check the log. If you see `fbink OpenType failed`, the font path is wrong — run
-Tools → *Show diagnostics on screen* to see which fonts resolved.
+`sh /mnt/us/dashboard/dashboard.sh probe` to see which fonts resolved.
 
 **Weather never appears (shows `—`).**
 The Kindle has no internet. Confirm it is joined to Wi-Fi and can reach the
@@ -607,7 +637,7 @@ to cover the clock's.
 **The date above the clock is missing or overlapping.**
 Vertical placement is chained from fbink's own reported line advance, so this
 should not happen — see *Vertical layout is chained, not absolute* above. If it
-does, run **Tools → Show geometry on screen** and check that `next_top` is being
+does, run `sh /mnt/us/dashboard/dashboard.sh geo` and check that `next_top` is being
 reported; if it comes back empty, fbink did not accept `-E` on your build and the
 layout fell back to the estimated factor, which is less precise.
 

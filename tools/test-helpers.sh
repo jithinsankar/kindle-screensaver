@@ -23,6 +23,11 @@ UPD="$HERE/../device/lib/update.sh"
 [ -r "$WX" ] || { echo "cannot find $WX"; exit 1; }
 
 LOG_FILE=/dev/null
+# Point the autostart job at a scratch path BEFORE sourcing util.sh, so the test
+# never touches the host's /etc/upstart. util.sh only fills this in when unset.
+TMP=$(mktemp -d 2>/dev/null || echo /tmp/kdash-test-$$)
+mkdir -p "$TMP" 2>/dev/null
+UPSTART_JOB="$TMP/dashboard.conf"
 . "$UTIL"
 . "$WX"
 # Optional: only present once the feature is deployed.
@@ -40,9 +45,6 @@ check() {
         fail=$(( fail + 1 ))
     fi
 }
-
-TMP=$(mktemp -d 2>/dev/null || echo /tmp/kdash-test-$$)
-mkdir -p "$TMP" 2>/dev/null
 
 echo "--- touchscreen discovery ---"
 # Real layout from a Kindle Basic 3: the touch controller is cyttsp5_mt on event2.
@@ -696,6 +698,44 @@ check "STATE_DIR has a default"  "$( ( unset STATE_DIR; . "$UTIL" >/dev/null 2>&
 check "LOG_FILE has a default"   "$( ( unset LOG_FILE LOG_DIR; . "$UTIL" >/dev/null 2>&1; printf '%s' "$LOG_FILE" ) )" "/mnt/us/dashboard/log/dashboard.log"
 # And a value that IS set must be left alone -- this is the whole point of :-.
 check "an explicit value wins"   "$( STATE_DIR=/tmp/custom; unset STATE_DIR; STATE_DIR=/tmp/mine; . "$UTIL" >/dev/null 2>&1; printf '%s' "$STATE_DIR" )" "/tmp/mine"
+
+echo
+echo "--- boot autostart: the job file's presence IS the state ---"
+# The KUAL menu has one 'Toggle boot autostart' entry, not an enable/disable
+# pair, and its label cannot show the current state. So the state has to be
+# asked of the filesystem -- a flag written elsewhere could disagree with it and
+# the report printed on the panel would then lie about the next boot.
+rm -f "$UPSTART_JOB"
+check "absent job reads as off"    "$( autostart_enabled && echo on || echo off )" "off"
+: > "$UPSTART_JOB"
+check "present job reads as on"    "$( autostart_enabled && echo on || echo off )" "on"
+rm -f "$UPSTART_JOB"
+check "removed again reads as off" "$( autostart_enabled && echo on || echo off )" "off"
+# A directory at that path is not a job file; it must not read as enabled.
+mkdir -p "$UPSTART_JOB" 2>/dev/null
+check "a directory is not a job"   "$( autostart_enabled && echo on || echo off )" "off"
+rmdir "$UPSTART_JOB" 2>/dev/null
+# The toggle decides from that helper, so the two must agree. This mirrors the
+# one line of install.sh's arg parsing that does the flip.
+for _had in off on; do
+    if [ "$_had" = "on" ]; then : > "$UPSTART_JOB"; else rm -f "$UPSTART_JOB"; fi
+    if autostart_enabled; then _now=0; else _now=1; fi
+    check "flip from $_had goes to $( [ "$_now" = 1 ] && echo on || echo off )" \
+        "$_now" "$( [ "$_had" = "on" ] && echo 0 || echo 1 )"
+done
+rm -f "$UPSTART_JOB"
+# install.sh must route through the helper rather than re-deriving the path, or
+# the two could drift to different files.
+if grep -q 'autostart_enabled' "$HERE/../device/install.sh" 2>/dev/null; then
+    check "install.sh uses the helper" "ok" "ok"
+else
+    check "install.sh uses the helper" "not found" "ok"
+fi
+if grep -q 'UPSTART_JOB="/etc/upstart' "$HERE/../device/install.sh" 2>/dev/null; then
+    check "install.sh does not hardcode the path" "hardcoded" "the path lives in util.sh"
+else
+    check "install.sh does not hardcode the path" "ok" "ok"
+fi
 
 echo
 echo "================================"

@@ -50,109 +50,76 @@
 			"internal": "status Starting the animation. Tap 3x to exit . . ."
 		},
 		{
-			"name": "Tools",
-			"priority": 20,
-			"items": [
-			{
-				"name": "Show status on screen",
-				"priority": 1,
-				"action": "./bin/ctl.sh",
-				"params": "status",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Checking status . . ."
-			},
-			{
-				"name": "Show diagnostics on screen",
-				"priority": 2,
-				"action": "./bin/ctl.sh",
-				"params": "probe",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Probing . . ."
-			},
-			{
-				"name": "Show geometry on screen",
-				"priority": 3,
-				"action": "./bin/ctl.sh",
-				"params": "geo",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Measuring geometry . . ."
-			},
-			{
-				"name": "Install / refresh files",
-				"priority": 4,
-				"action": "./bin/ctl.sh",
-				"params": "install",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Installing . . ."
-			},
-			{
-				"name": "Update from GitHub",
-				"priority": 5,
-				"action": "./bin/ctl.sh",
-				"params": "update",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Fetching the latest version . . ."
-			},
-			{
-				"name": "Fetch artwork from URL",
-				"priority": 6,
-				"action": "./bin/ctl.sh",
-				"params": "art",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Fetching artwork . . ."
-			},
-			{
-				"name": "Next animation",
-				"priority": 7,
-				"action": "./bin/ctl.sh",
-				"params": "next",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Switching animation . . ."
-			},
-			{
-				"name": "Show animations",
-				"priority": 8,
-				"action": "./bin/ctl.sh",
-				"params": "sets",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Listing animations . . ."
-			},
-			{
-				"name": "Enable boot autostart",
-				"priority": 10,
-				"action": "./bin/ctl.sh",
-				"params": "autostart-on",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Enabling autostart . . ."
-			},
-			{
-				"name": "Disable boot autostart",
-				"priority": 11,
-				"action": "./bin/ctl.sh",
-				"params": "autostart-off",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Disabling autostart . . ."
-			},
-			{
-				"name": "Uninstall (restore wallpaper)",
-				"priority": 12,
-				"action": "./bin/ctl.sh",
-				"params": "uninstall",
-				"exitmenu": true,
-				"status": false,
-				"internal": "status Uninstalling . . ."
-			}
-			]
+			"name": "Next animation",
+			"priority": 6,
+			"action": "./bin/ctl.sh",
+			"params": "next",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Switching animation . . ."
+		},
+		{
+			"name": "Show animations",
+			"priority": 7,
+			"action": "./bin/ctl.sh",
+			"params": "sets",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Listing animations . . ."
+		},
+		{
+			"name": "Show status on screen",
+			"priority": 8,
+			"action": "./bin/ctl.sh",
+			"params": "status",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Checking status . . ."
+		},
+		{
+			"name": "Update from GitHub",
+			"priority": 9,
+			"action": "./bin/ctl.sh",
+			"params": "update",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Fetching the latest version . . ."
+		},
+		{
+			"name": "Fetch artwork from URL",
+			"priority": 10,
+			"action": "./bin/ctl.sh",
+			"params": "art",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Fetching artwork . . ."
+		},
+		{
+			"name": "Install / refresh files",
+			"priority": 11,
+			"action": "./bin/ctl.sh",
+			"params": "install",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Installing . . ."
+		},
+		{
+			"name": "Toggle boot autostart",
+			"priority": 12,
+			"action": "./bin/ctl.sh",
+			"params": "autostart-toggle",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Flipping boot autostart . . ."
+		},
+		{
+			"name": "Uninstall (restore wallpaper)",
+			"priority": 13,
+			"action": "./bin/ctl.sh",
+			"params": "uninstall",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Uninstalling . . ."
 		}
 		]
 	}
