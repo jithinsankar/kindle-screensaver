@@ -19,7 +19,11 @@
 
 .EXAMPLE
     # Procedural demo, so the pipeline can be exercised without any assets
-    powershell -File tools\make-animation.ps1 -DemoBird -OutDir artwork\bird
+    powershell -File tools\make-animation.ps1 -Demo night -Width 420 -Height 320 -OutDir artwork\night
+
+.EXAMPLE
+    # The other built-in scene: a bird flapping on a branch
+    powershell -File tools\make-animation.ps1 -Demo bird -Width 420 -Height 320 -OutDir artwork\bird
 
 .EXAMPLE
     # From an animated GIF, cropped out of a 600x800 frame
@@ -31,8 +35,16 @@
 #>
 [CmdletBinding()]
 param(
-    # An animated .gif, or a folder of images. Ignored when -DemoBird is used.
+    # An animated .gif, or a folder of images. Not used with -Demo.
     [string] $Source,
+
+    # Built-in procedural source, so the pipeline works with no assets at all.
+    #   bird  = a bird on a branch, flapping
+    #   night = a moonlit scene: crescent moon, drifting clouds, layered hills,
+    #           a torii gate and falling blossom
+    [string] $Demo,
+    [switch] $DemoBird,
+    [int] $DemoFrames = 8,
 
     # Where to write the frames. A manifest.json and optional preview.png are
     # written alongside them. The repo folder is artwork/; it installs as
@@ -71,10 +83,6 @@ param(
 
     # Frame filename prefix. Keep the default so the player can find them.
     [string] $Prefix = 'frame_',
-
-    # Generate a procedural "bird on a branch, flapping" source and use that.
-    [switch] $DemoBird,
-    [int] $DemoFrames = 8,
 
     # Also write preview.png: every frame side by side, so you can check the cycle
     # at a glance without opening them one at a time.
@@ -305,22 +313,250 @@ function Draw-BirdFrame {
 $frameImages = New-Object System.Collections.Generic.List[object]
 $sourceKind = ''
 $delayMs = 120
+# ---------------------------------------------------------------------------
+# procedural demo source: a moonlit night scene
+#
+# Black ink on white paper, which is literally what 1-bit e-ink is, so everything
+# is a silhouette or a bold outline -- the only thing the fast A2/DU waveforms can
+# render without dithering and ghosting. The composition follows the conventions
+# that make this kind of image read well:
+#   * bold, flat shapes rather than shading
+#   * an asymmetrical layout, with elements cropped by the frame edge
+#   * the tripartite depth trick: a large form in the foreground, a smaller one
+#     behind it, and a smaller one behind that
+#
+# Two things move, and both loop seamlessly. The clouds drift sideways and the
+# blossom falls, each on a tile period of HALF the canvas, so the pattern repeats
+# twice across the frame and after the last frame it is exactly back where it
+# started -- no jump at the loop point.
+#
+# The composition is original. The motifs -- crescent moon, stylised cloud bands,
+# layered hills, a torii gate, falling blossom -- are traditional and belong to
+# nobody; no existing artwork is copied.
+# ---------------------------------------------------------------------------
+
+function Draw-Blossom {
+    param($G, $Brush, [double]$X, [double]$Y, [double]$R)
+    # Five petals around a centre, which reads as a blossom even at ~10px.
+    foreach ($a in @(0, 72, 144, 216, 288)) {
+        $rad = $a * [math]::PI / 180.0
+        $px = $X + ([math]::Cos($rad) * $R * 0.60)
+        $py = $Y + ([math]::Sin($rad) * $R * 0.60)
+        $G.FillEllipse($Brush, ($px - $R * 0.42), ($py - $R * 0.42), ($R * 0.84), ($R * 0.84))
+    }
+    $G.FillEllipse($Brush, ($X - $R * 0.20), ($Y - $R * 0.20), ($R * 0.40), ($R * 0.40))
+}
+
+function Draw-NightFrame {
+    param([int]$Frame, [int]$Total, [int]$W, [int]$H)
+
+    $ss = 4
+    $big = New-Object System.Drawing.Bitmap(($W * $ss), ($H * $ss), [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $g = [System.Drawing.Graphics]::FromImage($big)
+    try {
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+        $g.Clear([System.Drawing.Color]::White)
+        $black = [System.Drawing.Brushes]::Black
+        $white = [System.Drawing.Brushes]::White
+
+        $sw = $W * $ss
+        $sh = $H * $ss
+        $k  = $ss * ($W / 420.0)      # proportions are authored against a 420px canvas
+        $ph = (2 * [math]::PI * $Frame) / $Total
+
+        # --- stars: fixed positions, so they do not crawl between frames ------
+        $stars = @(
+            @(0.06,0.07),@(0.13,0.17),@(0.22,0.05),@(0.31,0.14),@(0.39,0.04),
+            @(0.48,0.11),@(0.57,0.06),@(0.66,0.16),@(0.75,0.05),@(0.84,0.13),
+            @(0.92,0.08),@(0.97,0.20),@(0.10,0.28),@(0.27,0.24),@(0.63,0.26),
+            @(0.89,0.29),@(0.18,0.36),@(0.72,0.34),@(0.45,0.20),@(0.54,0.29)
+        )
+        $si = 0
+        foreach ($s in $stars) {
+            $si++
+            # A 4-point sparkle, not a dot: dots are indistinguishable from the
+            # falling blossom and the sky just reads as speckled noise.
+            $sx = $s[0] * $sw
+            $sy = $s[1] * $sh
+            # Every third star twinkles. Two cycles per loop, so it closes exactly.
+            if (($si % 3) -eq 0) {
+                if ([math]::Sin(2 * $ph + $si * 1.7) -lt 0.15) { continue }
+            }
+            $r  = 2.6 * $k
+            $w  = 0.9 * $k
+            $g.FillRectangle($black, [float]($sx - $w / 2), [float]($sy - $r), [float]$w, [float](2 * $r))
+            $g.FillRectangle($black, [float]($sx - $r), [float]($sy - $w / 2), [float](2 * $r), [float]$w)
+        }
+
+        # --- distant birds: the classic three-stroke motif ---------------------
+        # Each is two arcs meeting at a shallow angle, which is all a bird needs
+        # to be at this size. Static, and small, so they read as far away.
+        $birdPen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, (1.1 * $k))
+        $birdPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $birdPen.EndCap   = [System.Drawing.Drawing2D.LineCap]::Round
+        foreach ($bd in @(@(0.455, 0.175, 0.030), @(0.512, 0.135, 0.024), @(0.560, 0.200, 0.019))) {
+            $bx = $bd[0] * $sw
+            $by = $bd[1] * $sh
+            $bw = $bd[2] * $sw
+            $bh = $bw * 0.42
+            $g.DrawBezier($birdPen,
+                [System.Drawing.PointF]::new([float]($bx - $bw), [float]($by + $bh)),
+                [System.Drawing.PointF]::new([float]($bx - $bw * 0.5), [float]($by - $bh)),
+                [System.Drawing.PointF]::new([float]($bx - $bw * 0.1), [float]($by - $bh)),
+                [System.Drawing.PointF]::new([float]$bx, [float]$by))
+            $g.DrawBezier($birdPen,
+                [System.Drawing.PointF]::new([float]$bx, [float]$by),
+                [System.Drawing.PointF]::new([float]($bx + $bw * 0.1), [float]($by - $bh)),
+                [System.Drawing.PointF]::new([float]($bx + $bw * 0.5), [float]($by - $bh)),
+                [System.Drawing.PointF]::new([float]($bx + $bw), [float]($by + $bh)))
+        }
+
+        # --- moon: a crescent, which is unmistakable where a disc would read as
+        # a sun. Carved by overlapping a white disc on a black one.
+        $mr = 0.090 * $sw
+        $mx = 0.775 * $sw
+        $my = 0.195 * $sh
+        $g.FillEllipse($black, ($mx - $mr), ($my - $mr), (2 * $mr), (2 * $mr))
+        $g.FillEllipse($white, ($mx - $mr + 0.52 * $mr), ($my - $mr - 0.36 * $mr), (2 * $mr), (2 * $mr))
+        # NO halo ring here. An earlier version drew one and it crossed the clouds
+        # and the crescent like a stray circle, which looked like a mistake.
+
+        # --- clouds drifting sideways -----------------------------------------
+        # (No clouds. Three attempts -- solid capsules, layered capsules and
+        # outlined scalloped bands -- all read as the wrong thing: black tablets,
+        # then stacked pancakes, then caterpillar segments. Cloud shapes are hard
+        # to get right procedurally at this size, and a wrong cloud is much worse
+        # than no cloud. A human artist can add them with the same pipeline.)
+
+        # --- distant ridge: drawn BEFORE the near hill, so the near hill covers
+        # its base and only the ridge line shows above. That is what makes it read
+        # as further away rather than as a stray line floating in the sky.
+        $ridge = New-Object System.Drawing.Drawing2D.GraphicsPath
+        $r0 = 0.700 * $sh
+        $ridge.AddBezier(0, ($r0 + 0.02 * $sh), (0.22 * $sw), ($r0 - 0.13 * $sh), (0.38 * $sw), ($r0 - 0.13 * $sh), (0.53 * $sw), ($r0 + 0.01 * $sh))
+        $ridge.AddBezier((0.53 * $sw), ($r0 + 0.01 * $sh), (0.68 * $sw), ($r0 + 0.15 * $sh), (0.84 * $sw), ($r0 - 0.11 * $sh), $sw, ($r0 + 0.02 * $sh))
+        $ridgePen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, (1.5 * $k))
+        $g.DrawPath($ridgePen, $ridge)
+        $ridge.Dispose()
+
+        # --- near hill, sampled from a function rather than a hand-drawn path.
+        # A hard-coded torii position against a bezier put the gate either floating
+        # in the sky or buried in the hill; with a function the gate can be planted
+        # EXACTLY on the surface.
+        $hillY = {
+            param([double]$t)
+            0.815 - 0.075 * [math]::Sin([math]::PI * $t) - 0.020 * [math]::Sin(2 * [math]::PI * $t + 0.6)
+        }
+        $hp = New-Object 'System.Collections.Generic.List[System.Drawing.PointF]'
+        for ($i = 0; $i -le 60; $i++) {
+            $t = $i / 60.0
+            $hp.Add([System.Drawing.PointF]::new([float]($t * $sw), [float]((& $hillY $t) * $sh)))
+        }
+        $hp.Add([System.Drawing.PointF]::new([float]$sw, [float]$sh))
+        $hp.Add([System.Drawing.PointF]::new([float]0, [float]$sh))
+        $g.FillPolygon($black, $hp.ToArray())
+
+        # --- torii gate. Planted on the hill surface via the same function, and
+        # rising clear of the ridge behind it so the whole gate reads against the
+        # sky. The first attempt drew it on the solid hill, where black-on-black
+        # made it invisible.
+        $tx = 0.295
+        $baseY = (& $hillY $tx) * $sh
+        $topY  = 0.500 * $sh
+        $pw    = 0.019 * $sw
+        $off   = 0.072 * $sw
+        $lean  = 0.011 * $sw
+        $tcx   = $tx * $sw
+        foreach ($side in @(-1, 1)) {
+            $bx = $tcx + ($side * $off)
+            $g.FillPolygon($black, @(
+                [System.Drawing.PointF]::new([float]($bx - $pw / 2 + $side * $lean), [float]$topY),
+                [System.Drawing.PointF]::new([float]($bx + $pw / 2 + $side * $lean), [float]$topY),
+                [System.Drawing.PointF]::new([float]($bx + $pw / 2), [float]$baseY),
+                [System.Drawing.PointF]::new([float]($bx - $pw / 2), [float]$baseY)
+            ))
+        }
+        # kasagi: the top lintel, swept up at the ends
+        $kw = 0.145 * $sw
+        $kt = 0.014 * $sh
+        $kx1 = $tcx - $kw
+        $kx2 = $tcx + $kw
+        $kEnd = $topY - 0.018 * $sh
+        $kMid = $topY + 0.006 * $sh
+        $g.FillPolygon($black, @(
+            [System.Drawing.PointF]::new([float]$kx1,                 [float]$kEnd),
+            [System.Drawing.PointF]::new([float]($kx1 + 0.09 * $sw), [float]$kMid),
+            [System.Drawing.PointF]::new([float]($kx2 - 0.09 * $sw), [float]$kMid),
+            [System.Drawing.PointF]::new([float]$kx2,                 [float]$kEnd),
+            [System.Drawing.PointF]::new([float]$kx2,                 [float]($kEnd + $kt)),
+            [System.Drawing.PointF]::new([float]($kx2 - 0.09 * $sw), [float]($kMid + $kt)),
+            [System.Drawing.PointF]::new([float]($kx1 + 0.09 * $sw), [float]($kMid + $kt)),
+            [System.Drawing.PointF]::new([float]$kx1,                 [float]($kEnd + $kt))
+        ))
+        # nuki: the lower beam, and the short strut between the two
+        $nw = 0.098 * $sw
+        $nh = 0.010 * $sh
+        $ny = $topY + 0.070 * $sh
+        $g.FillRectangle($black, ($tcx - $nw), $ny, (2 * $nw), $nh)
+        $g.FillRectangle($black, ($tcx - 0.007 * $sw), ($kEnd + $kt), (0.014 * $sw), ($ny - ($kEnd + $kt)))
+
+        # --- falling blossom --------------------------------------------------
+        $pPeriod = 0.5
+        $pFall   = $pPeriod / $Total
+        $petals = @(
+            @(0.10, 0.00), @(0.24, 0.34), @(0.37, 0.68), @(0.52, 0.16),
+            @(0.65, 0.52), @(0.79, 0.82), @(0.92, 0.44)
+        )
+        foreach ($p in $petals) {
+            $px = $p[0] * $sw + ([math]::Sin($ph + $p[1] * 6.283) * 0.016 * $sw)
+            $py = (($p[1] + $Frame * $pFall) % $pPeriod) * $sh
+            foreach ($off in @(-1.0, 0.0, 1.0)) {
+                $yy = $py + ($off * $pPeriod * $sh)
+                if ($yy -lt (-0.05 * $sh) -or $yy -gt (1.05 * $sh)) { continue }
+                $st = $g.Save()
+                $g.TranslateTransform([float]$px, [float]$yy)
+                $g.RotateTransform([float](28 * [math]::Sin($ph + $p[1] * 3.0)))
+                # A single small ellipse. The two-lobe version read as a peanut or
+                # a blob at this size, and made the sky look like debris.
+                $pr = 0.012 * $sw
+                $g.FillEllipse($black, [float](-$pr), [float](-$pr * 0.55), [float](2 * $pr), [float]($pr * 1.10))
+                $g.Restore($st)
+            }
+        }
+
+        # (No foreground branch: an earlier version had one entering the top-left,
+        # and it collided with the clouds and read as a squiggle with blobs on it.
+        # The petals and the solid hill already supply the near plane.)
+    }
+    finally { $g.Dispose() }
+    return $big
+}
+
 $tempSourceDir = $null
 $scratch = New-Object System.Collections.Generic.List[System.IDisposable]
 
-if ($DemoBird) {
-    $sourceKind = "procedural demo ($DemoFrames frames)"
-    $w = if ($Width -gt 0) { $Width } else { 200 }
-    $h = if ($Height -gt 0) { $Height } else { 150 }
-    $Width = $w
-    $Height = $h
+if ($DemoBird) { $Demo = 'bird' }
+if ($Demo) {
+    switch ($Demo) {
+        'bird'  { $dw = 200; $dh = 150 }
+        'night' { $dw = 420; $dh = 320 }
+        default { throw "unknown -Demo '$Demo' -- use 'bird' or 'night'" }
+    }
+    if ($Width  -gt 0) { $dw = $Width }
+    if ($Height -gt 0) { $dh = $Height }
+    $sourceKind = "procedural demo '$Demo' ($DemoFrames frames)"
+    $Width = $dw
+    $Height = $dh
     for ($i = 0; $i -lt $DemoFrames; $i++) {
-        $bmp = Draw-BirdFrame -Frame $i -Total $DemoFrames -W $w -H $h
+        switch ($Demo) {
+            'bird'  { $bmp = Draw-BirdFrame  -Frame $i -Total $DemoFrames -W $dw -H $dh }
+            'night' { $bmp = Draw-NightFrame -Frame $i -Total $DemoFrames -W $dw -H $dh }
+        }
         $frameImages.Add($bmp)
     }
 }
 elseif (-not $Source) {
-    throw "Give -Source <gif|folder> or -DemoBird."
+    throw "Give -Source <gif|folder> or -Demo <bird|night>."
 }
 elseif (Test-Path -LiteralPath $Source -PathType Container) {
     $files = @(Get-ChildItem -LiteralPath $Source -File |

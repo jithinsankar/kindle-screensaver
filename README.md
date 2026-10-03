@@ -15,7 +15,8 @@ read that first.**
 |---|---|
 | [`FORMAT.md`](FORMAT.md) | the format spec — start here |
 | [`config.json`](config.json) | **which animation is current** — edit `"active"` to switch |
-| [`bird/`](bird) | a worked example: 8 frames, 420×320, drawn at (90, 240) |
+| [`bird/`](bird) | a worked example: 8 frames, a bird flapping on a branch |
+| [`night/`](night) | a worked example: 12 frames, a moonlit scene with a torii gate |
 | `tools/make-animation.ps1` | turn a GIF or a folder of images into a valid frame set |
 | `tools/check-artwork.ps1` | validate a set before sharing it |
 
@@ -37,6 +38,10 @@ through a list on the device. See [FORMAT.md](FORMAT.md) for the details, and fo
 **2. Author the frames.**
 
 ```powershell
+# two built-in scenes, so you can see it work with no assets at all
+powershell -File tools\make-animation.ps1 -Demo night -Width 420 -Height 320 -OutDir myanimation -Preview
+powershell -File tools\make-animation.ps1 -Demo bird  -Width 420 -Height 320 -OutDir myanimation -Preview
+
 # from an animated GIF, cropping a region out of each 600x800 frame
 powershell -File tools\make-animation.ps1 -Source my.gif -Crop 180,420,420,320 -OutDir myanimation
 

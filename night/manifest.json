@@ -1,0 +1,20 @@
+{
+    "format":  "kindle-dashboard-animation",
+    "version":  1,
+    "name":  "night",
+    "screen":  {
+                   "width":  600,
+                   "height":  800
+               },
+    "frame":  {
+                  "width":  420,
+                  "height":  320,
+                  "x":  90,
+                  "y":  240
+              },
+    "count":  12,
+    "delay_ms":  120,
+    "loop":  "continuous",
+    "palette":  "1-bit",
+    "preview":  "preview.png"
+}
