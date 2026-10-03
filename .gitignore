@@ -1,0 +1,26 @@
+# Runtime state and logs live on the device, not in the repo.
+device/state/
+device/log/
+
+# Locally rendered previews of the lock screen are build artefacts.
+preview/*.png
+
+# artwork/ is its OWN git repository (published as kindle-screensaver), so it is
+# excluded here. Committing it would record a bare gitlink and the archive would
+# contain an empty directory -- and the device updater would then think it had
+# fetched artwork it never got. The frames are fetched from the art repo by
+# ART_URL instead, which is a separate mechanism with its own config.
+#
+# manifest.json and preview.png inside artwork/ ARE part of the format, so they
+# must stay committed *there*.
+artwork/
+
+# Scratch output from tools/make-animation.ps1 before it is meant to be committed.
+*_tmp/
+*.tmp
+
+# Editor / OS noise
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini

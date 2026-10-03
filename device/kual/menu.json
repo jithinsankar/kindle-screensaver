@@ -1,0 +1,160 @@
+{
+	"items": [
+	{
+		"name": "Dashboard",
+		"priority": -997,
+		"items": [
+		{
+			"name": "Start (show clock + weather)",
+			"priority": 1,
+			"action": "./bin/ctl.sh",
+			"params": "start",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Starting the dashboard . . ."
+		},
+		{
+			"name": "Stop (restore Kindle UI)",
+			"priority": 2,
+			"action": "./bin/ctl.sh",
+			"params": "stop",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Stopping the dashboard . . ."
+		},
+		{
+			"name": "Restart",
+			"priority": 3,
+			"action": "./bin/ctl.sh",
+			"params": "restart",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Restarting the dashboard . . ."
+		},
+		{
+			"name": "Redraw now",
+			"priority": 4,
+			"action": "./bin/ctl.sh",
+			"params": "once",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Redrawing . . ."
+		},
+		{
+			"name": "Start animation",
+			"priority": 5,
+			"action": "./bin/ctl.sh",
+			"params": "anim",
+			"exitmenu": true,
+			"status": false,
+			"internal": "status Starting the animation. Tap 3x to exit . . ."
+		},
+		{
+			"name": "Tools",
+			"priority": 20,
+			"items": [
+			{
+				"name": "Show status on screen",
+				"priority": 1,
+				"action": "./bin/ctl.sh",
+				"params": "status",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Checking status . . ."
+			},
+			{
+				"name": "Show diagnostics on screen",
+				"priority": 2,
+				"action": "./bin/ctl.sh",
+				"params": "probe",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Probing . . ."
+			},
+			{
+				"name": "Show geometry on screen",
+				"priority": 3,
+				"action": "./bin/ctl.sh",
+				"params": "geo",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Measuring geometry . . ."
+			},
+			{
+				"name": "Install / refresh files",
+				"priority": 4,
+				"action": "./bin/ctl.sh",
+				"params": "install",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Installing . . ."
+			},
+			{
+				"name": "Update from GitHub",
+				"priority": 5,
+				"action": "./bin/ctl.sh",
+				"params": "update",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Fetching the latest version . . ."
+			},
+			{
+				"name": "Fetch artwork from URL",
+				"priority": 6,
+				"action": "./bin/ctl.sh",
+				"params": "art",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Fetching artwork . . ."
+			},
+			{
+				"name": "Next animation",
+				"priority": 7,
+				"action": "./bin/ctl.sh",
+				"params": "next",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Switching animation . . ."
+			},
+			{
+				"name": "Show animations",
+				"priority": 8,
+				"action": "./bin/ctl.sh",
+				"params": "sets",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Listing animations . . ."
+			},
+			{
+				"name": "Enable boot autostart",
+				"priority": 10,
+				"action": "./bin/ctl.sh",
+				"params": "autostart-on",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Enabling autostart . . ."
+			},
+			{
+				"name": "Disable boot autostart",
+				"priority": 11,
+				"action": "./bin/ctl.sh",
+				"params": "autostart-off",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Disabling autostart . . ."
+			},
+			{
+				"name": "Uninstall (restore wallpaper)",
+				"priority": 12,
+				"action": "./bin/ctl.sh",
+				"params": "uninstall",
+				"exitmenu": true,
+				"status": false,
+				"internal": "status Uninstalling . . ."
+			}
+			]
+		}
+		]
+	}
+	]
+}

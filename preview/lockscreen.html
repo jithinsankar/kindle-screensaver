@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kindle dashboard - 600x800 layout preview</title>
+<!--
+  PC-side mock of the fbink layout. It exists so the geometry can be eyeballed
+  and tweaked on a desktop before pushing to the Kindle.
+
+  The numbers in LAYOUT below must stay in sync with device/config.sh.
+  Fonts differ (browser uses a system sans, the Kindle uses Noto Sans), but the
+  metrics below are tuned so the spacing matches what fbink produces:
+  fbink puts the first baseline at (top + ascent), so the visible cap-height of
+  a line begins 0.355em below `top`.
+-->
+<style>
+  :root { --panel:#EDEDED; --primary:#141414; --muted:#5F5F5F; --faint:#9A9A9A; }
+  html,body { margin:0; padding:24px; background:#888; font-family:Helvetica,Arial,sans-serif; }
+  #stage { transform-origin: top left; }
+  #screen { position:relative; width:600px; height:800px; background:#fff; overflow:hidden;
+            box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  .line { position:absolute; left:0; width:600px; text-align:center; line-height:1;
+          white-space:nowrap; color:var(--primary); }
+  .card { position:absolute; background:var(--panel); }
+  .clab { color:var(--muted); }
+  .ccond{ color:var(--muted); }
+  #ruler { position:absolute; inset:0; pointer-events:none; }
+  #ruler div { position:absolute; left:0; width:600px; border-top:1px dotted #c9d6ff; }
+  #ruler span { position:absolute; left:2px; font-size:9px; color:#7a93d6; }
+  #notes { max-width:600px; color:#fff; font-size:13px; margin-top:12px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="screen">
+    <div id="ruler"></div>
+  </div>
+</div>
+<div id="notes"></div>
+
+<script>
+// ---- must match device/config.sh -----------------------------------------
+// The device chains vertical placement from fbink's reported line advance, so
+// the mock does the same: each line box is px * FACTOR tall and they stack in
+// order. That is why nothing can overlap, regardless of font metric details.
+const LAYOUT = {
+  W: 600, H: 800,
+  FACTOR: 1.45,              // FALLBACK_LINE_FACTOR
+  date:   { px: 24,  top: 20,  color: '#5F5F5F' },
+  clockGap: 6,
+  clock:  { px: 200,           color: '#141414' },
+  footer: { px: 22,  top: 750, color: '#9A9A9A' },
+  card: {
+    left: 40, width: 520, height: 176,
+    tops: [370, 562],
+    padTop: 12, gap1: 6, gap2: 4,
+    label: { px: 22, color: '#5F5F5F' },
+    temp:  { px: 52, color: '#141414' },
+    cond:  { px: 22, color: '#5F5F5F' },
+  },
+};
+
+const SAMPLE = [
+  { label: 'Bengaluru',  temp: 27, cond: '\u2600 Clear \u00B7 31\u00B0/22\u00B0' },
+  { label: 'Thalassery', temp: 29, cond: '\u2602 Heavy showers \u00B7 32\u00B0/25\u00B0' },
+];
+
+const screen = document.getElementById('screen');
+const notes  = document.getElementById('notes');
+
+function advance(top, px) {
+  return top + px * LAYOUT.FACTOR;
+}
+
+function add(text, px, top, color) {
+  const el = document.createElement('div');
+  el.className = 'line';
+  el.textContent = text;
+  el.style.fontSize = px + 'px';
+  el.style.top = Math.round(top) + 'px';
+  el.style.color = color;
+  screen.appendChild(el);
+  return el;
+}
+
+// date, then the clock chained beneath it -- the same relationship the device
+// establishes from fbink's reported next_top
+let y = LAYOUT.date.top;
+add('Thursday, 2 October', LAYOUT.date.px, y, LAYOUT.date.color);
+y = advance(y, LAYOUT.date.px) + LAYOUT.clockGap;
+add('10:42', LAYOUT.clock.px, y, LAYOUT.clock.color);
+
+add('Updated 10:41', LAYOUT.footer.px, LAYOUT.footer.top, LAYOUT.footer.color);
+
+// cards: text chained inside each panel, so the condition line cannot drift off
+// the bottom edge
+const C = LAYOUT.card;
+C.tops.forEach((top, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.cssText = `left:${C.left}px;top:${top}px;width:${C.width}px;height:${C.height}px`;
+  screen.appendChild(card);
+
+  const d = SAMPLE[i % SAMPLE.length];
+  let cy = top + C.padTop;
+  const mk = (txt, spec) => {
+    add(txt, spec.px, cy, spec.color);
+    cy = advance(cy, spec.px);
+  };
+  mk(d.label, C.label);
+  cy += C.gap1;
+  mk(d.temp + '\u00B0', C.temp);
+  cy += C.gap2;
+  mk(d.cond, C.cond);
+});
+
+// measurement ruler + a summary of what fits
+const ruler = document.getElementById('ruler');
+[100, 200, 300, 400, 500, 600, 700].forEach(y => {
+  const r = document.createElement('div');
+  r.style.top = y + 'px';
+  r.innerHTML = `<span>${y}</span>`;
+  ruler.appendChild(r);
+});
+
+// Measure the text itself, not the full-width container it is centred in.
+function textWidth(txt, px) {
+  const probe = add(txt, px, -9999, '#000');
+  const range = document.createRange();
+  range.selectNodeContents(probe);
+  const w = range.getBoundingClientRect().width;
+  probe.remove();
+  return Math.round(w);
+}
+
+// Authoritative width from the real font metrics (Noto Sans, measured with
+// Windows GlyphTypeface). The browser will use Arial, so expect a small
+// difference -- the device number is the one that matters.
+const DEVICE_CLOCK_WIDTH = 511;
+
+const bw = textWidth('10:42', LAYOUT.clock.px);
+const cw = textWidth('Heavy showers \u00B7 32\u00B0/25\u00B0', LAYOUT.card.cond.px);
+const tw = textWidth('27\u00B0', LAYOUT.card.temp.px);
+
+notes.textContent =
+  `Clock "10:42" @px${LAYOUT.clock.px}: browser ${bw}px, device ${DEVICE_CLOCK_WIDTH}px` +
+  ` (${(100 * DEVICE_CLOCK_WIDTH / LAYOUT.W).toFixed(1)}% of the 600px panel, must stay under ~580). ` +
+  `Longest condition line @px${LAYOUT.card.cond.px}: ${cw}px. ` +
+  `Temperature @px${LAYOUT.card.temp.px}: ${tw}px. ` +
+  `Dotted rules mark every 100px.`;
+
+// Scale the mock so the whole 600x800 panel fits whatever pane it is opened in.
+// Done last so the measurements above are unscaled.
+const stage = document.getElementById('stage');
+const scale = Math.min(1, (document.documentElement.clientWidth - 48) / LAYOUT.W);
+stage.style.transform = `scale(${scale})`;
+stage.style.height = Math.round(LAYOUT.H * scale) + 'px';
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Line endings are load-bearing for this project.
+#
+# The device downloads these files STRAIGHT FROM THE GITHUB ARCHIVE and runs them
+# with /bin/sh. If a shell script arrives with CRLF endings the kernel looks for
+# an interpreter literally named "/bin/sh\r", and every script fails with a
+# confusing "not found" -- while looking perfectly fine in an editor. So pin LF
+# for the repo AND on checkout, whatever core.autocrlf happens to be set to
+# locally. (This bit us once already; verify.ps1 now checks for CR as well.)
+*.sh    text eol=lf
+*.json  text eol=lf
+*.xml   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+.gitignore        text eol=lf
+.gitattributes    text eol=lf
+
+# Images are binary; never touch them.
+*.png   binary
