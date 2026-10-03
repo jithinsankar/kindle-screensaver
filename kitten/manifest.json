@@ -1,0 +1,20 @@
+{
+  "format": "kindle-dashboard-animation",
+  "version": 1,
+  "name": "kitten",
+  "screen": {
+    "width": 600,
+    "height": 800
+  },
+  "frame": {
+    "width": 600,
+    "height": 800,
+    "x": 0,
+    "y": 0
+  },
+  "count": 12,
+  "delay_ms": 200,
+  "loop": "continuous",
+  "palette": "1-bit",
+  "preview": "preview.png"
+}
