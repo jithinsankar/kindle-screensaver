@@ -686,6 +686,18 @@ FRONTLIGHT="$_keep_fl"
 unset -f lipc-set-prop lipc-get-prop 2>/dev/null
 
 echo
+echo "--- paths: an unset STATE_DIR must not send writes to / ---"
+# STATE_DIR comes from config.sh. If config.sh is missing or truncated it used to
+# end up EMPTY, so "$STATE_DIR/last-update" became "/last-update" and the Kindle's
+# read-only root answered with a bare "Permission denied" that pointed nowhere.
+# util.sh now supplies defaults, and config.sh still wins because ${VAR:-default}
+# only fills in when the value is empty.
+check "STATE_DIR has a default"  "$( ( unset STATE_DIR; . "$UTIL" >/dev/null 2>&1; printf '%s' "$STATE_DIR" ) )" "/mnt/us/dashboard/state"
+check "LOG_FILE has a default"   "$( ( unset LOG_FILE LOG_DIR; . "$UTIL" >/dev/null 2>&1; printf '%s' "$LOG_FILE" ) )" "/mnt/us/dashboard/log/dashboard.log"
+# And a value that IS set must be left alone -- this is the whole point of :-.
+check "an explicit value wins"   "$( STATE_DIR=/tmp/custom; unset STATE_DIR; STATE_DIR=/tmp/mine; . "$UTIL" >/dev/null 2>&1; printf '%s' "$STATE_DIR" )" "/tmp/mine"
+
+echo
 echo "================================"
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1

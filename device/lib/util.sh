@@ -4,6 +4,20 @@
 # ============================================================================
 
 # ---------------------------------------------------------------------------
+# path defaults
+#
+# These are set by config.sh, which every entry point sources before this file.
+# The defaults below exist for when it is missing, unreadable or truncated: an
+# empty STATE_DIR sends every write to "/", and the Kindle's root is read-only, so
+# the symptom is a bare "Permission denied" that says nothing about the real
+# problem. ${VAR:-default} only fills in when the value is empty, so config.sh
+# still always wins.
+# ---------------------------------------------------------------------------
+STATE_DIR="${STATE_DIR:-/mnt/us/dashboard/state}"
+LOG_DIR="${LOG_DIR:-/mnt/us/dashboard/log}"
+LOG_FILE="${LOG_FILE:-$LOG_DIR/dashboard.log}"
+
+# ---------------------------------------------------------------------------
 # logging
 # ---------------------------------------------------------------------------
 log() {

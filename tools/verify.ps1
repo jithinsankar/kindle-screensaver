@@ -192,10 +192,17 @@ $cfgKeys = [regex]::Matches($cfg, '(?m)^\s*([A-Z][A-Z0-9_]*)=') |
     ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
 
 # Code only -- config.sh must NOT be included here, or every key trivially "exists".
+#
+# Full-line comments are stripped first. Documentation legitimately mentions
+# things like ${VAR:-default} while explaining a pattern, and scanning those made
+# the check report variables that do not exist -- a false alarm that trains you to
+# ignore the check. Only whole-line comments are removed; a trailing "#" could sit
+# inside a string literal.
 $code = ''
 foreach ($f in $shells) {
     if ($f -eq 'config.sh') { continue }
-    $code += (Get-Content -LiteralPath (Join-Path $dev $f) -Raw) + "`n"
+    $lines = Get-Content -LiteralPath (Join-Path $dev $f)
+    $code += (($lines | Where-Object { $_ -notmatch '^\s*#' }) -join "`n") + "`n"
 }
 
 # Resolved at runtime or overridable for tests, so not expected in config.sh.
@@ -207,6 +214,8 @@ $internalOk = @(
     'ANIM_FRAME_GLOB', 'ANIM_MANIFEST', 'ANIM_MF_X', 'ANIM_MF_Y', 'ANIM_MF_DELAY',
     'FBINK_IMG', 'FBINK_IMG_UNUSABLE', 'FBINK_IMAGE_CANDIDATES', 'SLEEP_MS_CMD',
     'UPDATE_TMPDIR', 'ART_DEST', 'ART_DEST_DEFAULT',
+    # Derived from LOG_FILE in dashboard.sh rather than set in config.sh.
+    'LOG_DIR',
     # Standard environment variables, not project settings.
     'TMPDIR', 'HOME', 'PATH'
 )

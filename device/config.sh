@@ -219,8 +219,13 @@ ANIM_MAX_FAILURES=3
 # with every script passing `sh -n`, so a failed download can never replace
 # working code. Your config.sh, state/ and log/ are never overwritten.
 UPDATE_ON_START=0             # 1 = check for an update when the dashboard starts
-UPDATE_REPO="owner/repo"       # GitHub owner/repo, or leave empty and set UPDATE_URL
-UPDATE_REF="main"             # a branch name, or a full refs/tags/v1.0.0
+# The device code and the artwork live in ONE repo on TWO branches:
+#   main  = artwork only  (ART_URL below)
+#   code  = this project  (UPDATE_REPO/UPDATE_REF here)
+# The updater needs a repo containing device/config.sh, so it must point at the
+# code branch -- the artwork branch is art-only and would 404.
+UPDATE_REPO="jithinsankar/kindle-screensaver"   # GitHub owner/repo, or leave empty and set UPDATE_URL
+UPDATE_REF="code"              # a branch name, or a full refs/tags/v1.0.0
 UPDATE_URL=""                 # overrides UPDATE_REPO entirely (GitLab, a release asset, anything)
 UPDATE_TOKEN=""               # only needed for a private repo; stored in plain text here
 UPDATE_MIN_INTERVAL=0         # 0 = check on every start; e.g. 21600 = at most every 6h

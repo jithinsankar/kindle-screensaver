@@ -205,14 +205,20 @@ tops — rather than guessing.
 
 ```sh
 KEEP_AWAKE=1        # ask powerd not to blank/suspend, and keep the idle timer alive
-FRONTLIGHT=-1       # 0-24, or -1 to leave the user's setting alone
+FRONTLIGHT=0        # 0-24, or -1 to leave the user's setting alone
 INHIBIT_USBMS=1     # stop volumd so plugging in a cable does not take the screen
 TAP_TO_EXIT=1       # 0 disables the tap-to-exit watcher (see the warning below)
 ```
 
-- `FRONTLIGHT=0` is worth setting on a device that is permanently on charge: the
-  backlight is a large continuous drain and e-ink needs none to stay readable.
-  The original value is recorded at install time and restored when you stop.
+- **`FRONTLIGHT=0` is the default, and that matters.** This is a standby display
+  meant to sit showing one page for days, and the frontlight is by far the largest
+  drain on a device we deliberately keep awake. `0` is *not* the same as `-1`: `-1`
+  leaves the light at whatever the user last chose, so it simply stays lit — which
+  is how it can end up burning all night. Set 1-24 if you want it on. The dashboard
+  drives `flIntensity` *and* `flOn` (some firmware clamps `0` or gates the light
+  behind the second), reads the result back, and logs a warning if it would not go
+  off — a frontlight that silently stays on is otherwise invisible, because the
+  frames render perfectly either way. The original value is restored when you stop.
 - `INHIBIT_USBMS=1` lets the dashboard survive being tethered to a PC, at the
   cost of not being able to see the Kindle's files while it runs.
 - `TAP_TO_EXIT=0` **disables your only way back to the Kindle UI.** The daemon
@@ -269,12 +275,37 @@ UPDATE_URL=""              # overrides UPDATE_REPO; works with any host
 UPDATE_MIN_INTERVAL=0       # 0 = check on every start; 21600 = at most every 6h
 ```
 
+The repo must contain **`device/config.sh`** at its top level — that is how the
+updater confirms it downloaded this project and not, say, an artwork archive.
+Pointing `UPDATE_REPO` at an art-only repo gives a plain `HTTP 404` and nothing
+else to go on, so a placeholder or a missing repo is now reported by name.
+
 `UPDATE_MIN_INTERVAL` is the answer to "don't query it all the time": set it and
 the Kindle will skip the check if it fetched recently. It never polls while
 running — only at start.
 
 A **private** repo needs `UPDATE_TOKEN`; it is read from the config file and sent
 as a bearer header, never logged. Be aware it is stored in plain text on the device.
+
+#### Code and artwork in one repo, on two branches
+
+This is how this project is published, and it keeps the artwork repo artwork-only:
+
+| Branch | Holds | Fetched by |
+|---|---|---|
+| `main` | the frames, `config.json`, `FORMAT.md` | `ART_URL` (the art fetch) |
+| `code` | the whole project (`device/`, `tools/`, `README.md`) | `UPDATE_REPO` + `UPDATE_REF="code"` |
+
+The two are independent: the art fetch never needs the code, and a code update
+never rewrites your frames. `.gitignore` excludes `artwork/` from the code branch
+because it is its own repository — committing it there would record a bare
+gitlink, and the archive would contain an empty directory that the updater would
+mistake for artwork it had received.
+
+**Line endings are load-bearing.** The device runs these files with `/bin/sh`
+straight from the archive, and a CRLF script fails with a confusing "not found"
+while looking perfectly fine in an editor. `.gitattributes` pins `eol=lf` for
+scripts, JSON and XML so no local `core.autocrlf` setting can break a release.
 
 ### What it does, and what it will not do
 
@@ -443,8 +474,8 @@ To choose which one plays, any of these:
 | How | Notes |
 |---|---|
 | **edit `"active"` in the repo's `config.json`** | **the intended way** — one line on GitHub, no cable, no tapping. Scales to hundreds of animations |
-| **KUAL → Dashboard → Next animation** | steps through the installed sets and shows the name |
-| **KUAL → Dashboard → Show animations** | lists what is installed and which is active |
+| **KUAL → Dashboard → Tools → Next animation** | steps through the installed sets and shows the name |
+| **KUAL → Dashboard → Tools → Show animations** | lists what is installed and which is active |
 | `sh /mnt/us/dashboard/dashboard.sh use fish` | set it explicitly |
 | `ANIM_SET="fish"` in `config.sh` | the device default, used when nothing overrides it |
 
