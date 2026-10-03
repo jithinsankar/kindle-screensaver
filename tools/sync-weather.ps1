@@ -4,9 +4,9 @@
     Refresh the vendored copy of the weather module.
 
 .DESCRIPTION
-    weather/ is its OWN git repository, published separately (kindle-weather),
-    because it has nothing to do with e-ink, clocks or layout -- it is HTTP in,
-    one line of text out.
+    weather/ is its OWN git repository, published separately
+    (kindle-weather-dashboard), because it has nothing to do with e-ink, clocks
+    or layout -- it is HTTP in, one line of text out.
 
     This repo still has to ship a copy of it at device/lib/weather.sh, because
     that file is part of the device payload: the Kindle updater copies device/
@@ -35,7 +35,7 @@ $dst = Join-Path $repoRoot 'device\lib\weather.sh'
 $rel = 'device\lib\weather.sh'
 
 if (-not (Test-Path -LiteralPath $src)) {
-    throw "Cannot find '$src'. It is the source of truth, so there is nothing to vendor. Clone kindle-weather into weather\ first."
+    throw "Cannot find '$src'. It is the source of truth, so there is nothing to vendor. Clone kindle-weather-dashboard into weather\ first."
 }
 
 # Normalise to LF on the way in. A CRLF shell script is fatal on the device: the

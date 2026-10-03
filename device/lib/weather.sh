@@ -1,6 +1,6 @@
 #!/bin/sh
 # ============================================================================
-#  kindle-weather -- fetch today's weather with nothing but a POSIX shell
+#  weather.sh -- fetch today's weather with nothing but a POSIX shell
 #
 #  Downloads the current conditions and today's high/low from a keyless HTTP
 #  API and caches them as ONE line of pipe-separated text. That single line is

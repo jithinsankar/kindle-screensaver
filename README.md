@@ -738,7 +738,7 @@ kindle_exp/
 │   ├── FORMAT.md               <- the animation format spec (for designers)
 │   ├── README.md               <- how to upload and what URL to use
 │   └── bird/                   <- manifest.json + frame_NNN.png + preview.png
-├── weather/                    <- its OWN repo (kindle-weather), not committed here
+├── weather/                    <- its OWN repo (kindle-weather-dashboard)
 │   ├── weather.sh              <- the standalone fetcher -- source of truth
 │   ├── test.sh                 <- 75 offline assertions, no network needed
 │   └── README.md               <- its API, its cache format, its host contract
@@ -764,7 +764,7 @@ original powerd values) and `dashboard/log/`.
 ### The weather module is a separate repository
 
 `device/lib/weather.sh` is a **vendored copy** of `weather/`, which is its own git
-repository (`kindle-weather`). It was split out because it has nothing to do with
+repository (`kindle-weather-dashboard`). It was split out because it has nothing to do with
 e-ink: it is HTTP in, one line of pipe-separated text out, and it runs on a laptop
 as happily as on a Kindle.
 
