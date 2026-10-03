@@ -165,11 +165,14 @@ check "fallback always advances" "$_mono" "1"
 
 echo
 echo "--- weather cache round trip (11 fields) ---"
-STATE_DIR="$TMP"
-mkdir -p "$STATE_DIR"
+# The weather code is a VENDORED standalone module (see weather/). It reads
+# WX_CACHE_DIR and knows nothing about STATE_DIR -- that handoff is util.sh's
+# job, and it is asserted in the paths section at the end of this file.
+WX_CACHE_DIR="$TMP"
+mkdir -p "$WX_CACHE_DIR"
 printf '%s\n' \
   '1759392000|27|30|68|61|31|22|Light rain|☂|Bengaluru|14:35' \
-  > "$STATE_DIR/wx0.txt"
+  > "$WX_CACHE_DIR/wx0.txt"
 weather_load 0
 check "field 2  temp"       "$WX_TEMP"        "27"
 check "field 6  tmax"       "$WX_TMAX"        "31"
@@ -180,12 +183,35 @@ check "field 11 fetch time" "$WX_FETCH_HHMM"  "14:35"
 check "footer source"       "$(weather_fetch_time)" "14:35"
 
 # A cache line from an older format must not crash the loader.
-printf '%s\n' '1759392000|27|30|68|61|31|22|Light rain|☂|Bengaluru' > "$STATE_DIR/wx1.txt"
-STATE_DIR="$TMP" weather_load 1
+printf '%s\n' '1759392000|27|30|68|61|31|22|Light rain|☂|Bengaluru' > "$WX_CACHE_DIR/wx1.txt"
+WX_CACHE_DIR="$TMP" weather_load 1
 check "old 10-field line still loads" "$WX_TEMP" "27"
 check "missing fetch time is empty"   "$WX_FETCH_HHMM" ""
 
 rm -rf "$TMP" 2>/dev/null
+
+echo
+echo "--- the JSON helpers must not need the weather module ---"
+# These three started life inside lib/weather.sh, which meant the artwork
+# manifest parser (anim.sh) and the update check (update.sh) had to load the
+# weather module to parse their own files.
+#
+# The failure mode is the nasty part: anim.sh guards with
+# `command -v json_section` and returns early, so a missing helper is SILENT --
+# animations just quietly fall back to the config placement and nobody notices
+# until the art lands in the wrong place. So source util.sh ALONE and assert
+# they are all there.
+_missing=""
+for _f in json_section json_num json_str sync_time; do
+    [ -n "$( ( . "$UTIL" >/dev/null 2>&1; command -v "$_f" ) )" ] || _missing="$_missing $_f"
+done
+check "util.sh alone provides them" "$_missing" ""
+
+# And the converse: the vendored weather module must still parse with no host
+# helpers defined, or it is not really standalone.
+check "weather.sh needs no host" \
+    "$( ( unset -f json_section json_num json_str is_int round0 http_get log 2>/dev/null; . "$WX" >/dev/null 2>&1; command -v json_section ) )" \
+    "json_section"
 
 echo
 echo "--- animation: frame directory ---"
@@ -698,6 +724,13 @@ check "STATE_DIR has a default"  "$( ( unset STATE_DIR; . "$UTIL" >/dev/null 2>&
 check "LOG_FILE has a default"   "$( ( unset LOG_FILE LOG_DIR; . "$UTIL" >/dev/null 2>&1; printf '%s' "$LOG_FILE" ) )" "/mnt/us/dashboard/log/dashboard.log"
 # And a value that IS set must be left alone -- this is the whole point of :-.
 check "an explicit value wins"   "$( STATE_DIR=/tmp/custom; unset STATE_DIR; STATE_DIR=/tmp/mine; . "$UTIL" >/dev/null 2>&1; printf '%s' "$STATE_DIR" )" "/tmp/mine"
+
+# The vendored weather module reads WX_CACHE_DIR; nothing else. If this handoff
+# is ever lost the module silently falls back to a temp directory, so every
+# refresh re-downloads and the cache never survives a reboot -- and that only
+# shows up on a device, never here.
+check "WX_CACHE_DIR follows STATE_DIR"  "$( ( unset WX_CACHE_DIR; STATE_DIR=/tmp/mine; . "$UTIL" >/dev/null 2>&1; printf '%s' "$WX_CACHE_DIR" ) )" "/tmp/mine"
+check "WX_CACHE_DIR can be overridden" "$( ( WX_CACHE_DIR=/tmp/cache; STATE_DIR=/tmp/mine; . "$UTIL" >/dev/null 2>&1; printf '%s' "$WX_CACHE_DIR" ) )" "/tmp/cache"
 
 echo
 echo "--- boot autostart: the job file's presence IS the state ---"

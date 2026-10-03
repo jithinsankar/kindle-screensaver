@@ -109,7 +109,7 @@ anim_dir() {
 # A frame set is self-describing: manifest.json carries its own frame size,
 # position on the panel and suggested delay, so handing someone the folder is
 # enough. See artwork/FORMAT.md. Flattened to one line because the sed-based JSON
-# helpers (shared with the weather code) expect that.
+# helpers in util.sh expect that.
 ANIM_MF_X=""
 ANIM_MF_Y=""
 ANIM_MF_DELAY=""

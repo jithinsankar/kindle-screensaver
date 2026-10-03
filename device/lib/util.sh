@@ -17,6 +17,13 @@ STATE_DIR="${STATE_DIR:-/mnt/us/dashboard/state}"
 LOG_DIR="${LOG_DIR:-/mnt/us/dashboard/log}"
 LOG_FILE="${LOG_FILE:-$LOG_DIR/dashboard.log}"
 
+# lib/weather.sh is a VENDORED COPY of a standalone module (see weather/), which
+# by design knows nothing about this project -- it cannot read STATE_DIR because
+# that name means nothing to a library that also runs on a laptop. So the
+# handoff happens here instead: it asks for WX_CACHE_DIR and we hand it ours.
+# Guarded with :-, so a test pointing it at a scratch directory still wins.
+WX_CACHE_DIR="${WX_CACHE_DIR:-$STATE_DIR}"
+
 # ---------------------------------------------------------------------------
 # boot autostart state
 #
@@ -326,6 +333,83 @@ http_date_header() {  # $1 = url -> "Thu, 02 Oct 2026 05:11:33 GMT"
     "$CURL_BIN" -fsSI --connect-timeout 8 --max-time 15 "$1" 2>/dev/null \
         | tr -d '\r' \
         | awk 'tolower($1)=="date:"{ $1=""; sub(/^[ \t]+/,""); print; exit }'
+}
+
+# Sync the system clock from an HTTP Date header. Best effort, root only.
+#
+# This is a CLOCK concern and not a weather one, which is why it lives here and
+# not in lib/weather.sh where it used to sit. It only ended up there because it
+# needs an HTTP helper -- and that put it on the wrong side of the line: the
+# standalone weather module would have had to carry the device's clock-setting
+# logic forever. A Kindle with a dead backup battery boots to 1970, so this runs
+# at startup whether or not the weather config asks for anything.
+sync_time() {
+    [ "${SYNC_TIME:-1}" = "1" ] || return 0
+    _d=$(http_date_header "https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0") || return 1
+    [ -n "$_d" ] || return 1
+
+    # "Thu, 02 Oct 2026 05:11:33 GMT"
+    _oldIFS="$IFS"; IFS=' '
+    set -- $_d
+    IFS="$_oldIFS"
+    _dow=$1; _day=$2; _mon=$3; _year=$4; _time=$5
+    [ -n "$_year" ] && [ -n "$_time" ] || return 1
+
+    case "$_mon" in
+        Jan) _mm=01 ;; Feb) _mm=02 ;; Mar) _mm=03 ;; Apr) _mm=04 ;;
+        May) _mm=05 ;; Jun) _mm=06 ;; Jul) _mm=07 ;; Aug) _mm=08 ;;
+        Sep) _mm=09 ;; Oct) _mm=10 ;; Nov) _mm=11 ;; Dec) _mm=12 ;;
+        *) return 1 ;;
+    esac
+
+    # sanity gates so a mangled header can never set a nonsense clock
+    case "$_year" in 20[2-9][0-9]|21[0-9][0-9]) ;; *) return 1 ;; esac
+    case "$_day" in [0-9]|[0-9][0-9]) ;; *) return 1 ;; esac
+    case "$_time" in [0-9][0-9]:[0-9][0-9]:[0-9][0-9]) ;; *) return 1 ;; esac
+
+    if date -u -s "$_year-$_mm-$_day $_time" >/dev/null 2>&1; then
+        log "time: synced to $_year-$_mm-$_day $_time UTC"
+        return 0
+    fi
+    log "time: could not set clock (date -u -s unsupported?)"
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# tiny JSON helpers
+# ---------------------------------------------------------------------------
+# The Kindle has no jq, so numbers and strings are pulled out of JSON with sed.
+#
+# These live here rather than in lib/weather.sh, where they spent their first
+# while, because they are NOT weather helpers. The artwork manifest (anim.sh)
+# and the repo's config.json (update.sh) both need them, and a display concern
+# must not have to load the weather module to parse its own files.
+#
+# All three tolerate whitespace between a colon and its value, because
+# tools/make-animation.ps1 writes the manifest with ConvertTo-Json as
+# `"frame":  {`. Without that tolerance every field silently returns nothing.
+# Callers must flatten newlines first (tr -d '\n').
+# ---------------------------------------------------------------------------
+json_section() {  # $1=json $2=key -> contents of "key":{ ... }
+    # Built in a variable rather than inline: the quoting needed to interpolate
+    # a key into a sed script is easy to get wrong inline.
+    _pat='s/.*"'"$2"'":[[:space:]]*{//p'
+    printf '%s' "$1" | sed -n "$_pat" | sed 's/}.*//'
+}
+
+json_num() {  # $1=blob $2=key -> first number, scalar or a one-element array
+    # NOTE: both the opening and closing brackets must be optional here.
+    # A provider may return a bare scalar for one key and a one-element array
+    # for another, and a mandatory \] silently matched only the arrays -- so
+    # every scalar came back empty.
+    _pat='s/.*"'"$2"'":[[:space:]]*\[*\(-\{0,1\}[0-9][0-9.]*\)\]*.*/\1/p'
+    printf '%s' "$1" | sed -n "$_pat"
+}
+
+json_str() {  # $1=blob $2=key -> first string value
+    # Same whitespace tolerance as json_num: ConvertTo-Json writes `"active":  "x"`.
+    _pat='s/.*"'"$2"'":[[:space:]]*"\([^"]*\)".*/\1/p'
+    printf '%s' "$1" | sed -n "$_pat"
 }
 
 # ---------------------------------------------------------------------------

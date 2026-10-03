@@ -556,8 +556,9 @@ PC  ──deploy.ps1──►  /mnt/us/dashboard/          (scripts + state + lo
                      /mnt/us/extensions/dashboard/ (KUAL menu)
 
 Kindle:
-  dashboard.sh run ──┬── fetch_all      open-meteo JSON (sed-parsed, no jq)
-                     │                   └── fallback: wttr.in text
+  dashboard.sh run ──┬── fetch_all      lib/weather.sh (vendored module):
+                     │                     open-meteo JSON, sed-parsed (no jq)
+                     │                     └── fallback: wttr.in text
                      ├── sync_time      HTTP Date header → date -u -s
                      ├── render_full    fbink OpenType → framebuffer
                      ├── render_clock   every 60 s, damaged-region refresh
@@ -726,8 +727,9 @@ kindle_exp/
 │   ├── install.sh
 │   ├── uninstall.sh
 │   ├── lib/
-│   │   ├── util.sh             <- logging, fbink + font discovery, LIPC
-│   │   ├── weather.sh          <- open-meteo + wttr.in, WMO codes, time sync
+│   │   ├── util.sh             <- logging, fbink + font discovery, LIPC,
+│   │   │                          HTTP, the sed JSON helpers, clock sync
+│   │   ├── weather.sh          <- VENDORED from weather/ -- do not edit here
 │   │   ├── render.sh           <- the lock screen itself
 │   │   ├── anim.sh             <- frame animation playback
 │   │   └── update.sh           <- self-update from a GitHub archive
@@ -736,11 +738,16 @@ kindle_exp/
 │   ├── FORMAT.md               <- the animation format spec (for designers)
 │   ├── README.md               <- how to upload and what URL to use
 │   └── bird/                   <- manifest.json + frame_NNN.png + preview.png
+├── weather/                    <- its OWN repo (kindle-weather), not committed here
+│   ├── weather.sh              <- the standalone fetcher -- source of truth
+│   ├── test.sh                 <- 75 offline assertions, no network needed
+│   └── README.md               <- its API, its cache format, its host contract
 ├── preview/
 │   └── lockscreen.html         <- PC-side mock at 600x800
 └── tools/
     ├── deploy.ps1              <- finds the Kindle, copies everything
     ├── verify.ps1              <- static checks + deployed-copy comparison
+    ├── sync-weather.ps1        <- re-vendor weather/weather.sh into device/lib
     ├── make-animation.ps1      <- GIF/frames -> Kindle animation frames
     ├── check-artwork.ps1       <- validate an animation folder before sharing
     ├── fbink-capabilities.ps1  <- what the on-device fbink binary supports
@@ -753,6 +760,37 @@ kindle_exp/
 
 Runtime state lives in `dashboard/state/` (weather cache, PID, the recorded
 original powerd values) and `dashboard/log/`.
+
+### The weather module is a separate repository
+
+`device/lib/weather.sh` is a **vendored copy** of `weather/`, which is its own git
+repository (`kindle-weather`). It was split out because it has nothing to do with
+e-ink: it is HTTP in, one line of pipe-separated text out, and it runs on a laptop
+as happily as on a Kindle.
+
+The device still needs the file inside `device/`, because the updater copies that
+tree verbatim and never fetches a second repository at runtime. So the module is
+vendored, and one tool keeps the copy honest:
+
+```powershell
+powershell -File tools\sync-weather.ps1          # re-copy after editing the module
+powershell -File tools\sync-weather.ps1 -Check   # verify.ps1 runs exactly this
+```
+
+**Edit the weather code in `weather/`, then run the sync tool, then commit both.**
+`verify.ps1` fails when the two drift apart. That matters more than it sounds:
+every other check reads the vendored copy, so without this one the published
+library and the code running on the device can stop matching and nothing complains.
+
+The module knows nothing about this project — it cannot read `STATE_DIR`, because
+that name means nothing on a laptop. `util.sh` does the wiring instead, handing it
+`WX_CACHE_DIR`, and supplying `log`, `http_get`, `is_int`, `round0` and the JSON
+helpers. The module defines all of those itself, guarded with `command -v`, so it
+runs standalone *and* an embedding application keeps its own versions.
+
+`weather/test.sh` asserts that independence, which is what makes it a property
+rather than a claim. It runs as part of `verify.ps1` whenever `weather/` is checked
+out.
 
 ---
 

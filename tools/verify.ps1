@@ -243,6 +243,10 @@ $internalOk = @(
     'UPDATE_TMPDIR', 'ART_DEST', 'ART_DEST_DEFAULT',
     # Derived from LOG_FILE in dashboard.sh rather than set in config.sh.
     'LOG_DIR',
+    # Handed to the vendored weather module by util.sh. Derived from STATE_DIR,
+    # not a user-facing setting -- the module is a standalone library and cannot
+    # read STATE_DIR, because that name means nothing on a laptop.
+    'WX_CACHE_DIR',
     # Standard environment variables, not project settings.
     'TMPDIR', 'HOME', 'PATH'
 )
@@ -285,17 +289,28 @@ if (-not $flMatch.Success) {
     }
 }
 
+function Test-Suite([string] $Path, [string] $Label) {
+    if (-not (Test-Path -LiteralPath $Path)) { Fail "$Label missing"; return }
+    $out = & $BashPath (To-BashPath $Path) 2>&1
+    $line = $out | Select-String 'passed:'
+    if ($LASTEXITCODE -eq 0) { Pass "$Label -> $line" }
+    else { Fail "$Label -> $line"; $out | Select-Object -Last 20 | ForEach-Object { Write-Host "       $_" } }
+}
+
 if (-not $SkipTests) {
     Head 'test suites'
     if (Test-Path -LiteralPath $BashPath) {
         foreach ($t in @('test-parse.sh', 'test-helpers.sh')) {
-            $tp = Join-Path $root "tools\$t"
-            if (-not (Test-Path -LiteralPath $tp)) { Fail "$t missing"; continue }
-            $out = & $BashPath (To-BashPath $tp) 2>&1
-            $line = $out | Select-String 'passed:'
-            if ($LASTEXITCODE -eq 0) { Pass "$t -> $line" }
-            else { Fail "$t -> $line"; $out | Select-Object -Last 20 | ForEach-Object { Write-Host "       $_" } }
+            Test-Suite (Join-Path $root "tools\$t") $t
         }
+
+        # weather/ is its OWN repository and may not be checked out. When it is,
+        # its suite is the only thing that proves the vendored module is
+        # genuinely standalone rather than merely living in another folder --
+        # which is the entire reason it was split out.
+        $wt = Join-Path $root 'weather\test.sh'
+        if (Test-Path -LiteralPath $wt) { Test-Suite $wt 'weather/test.sh' }
+        else { Write-Host '  (weather/ not checked out -- standalone suite skipped)' -ForegroundColor Yellow }
     }
 }
 
@@ -343,6 +358,30 @@ if (-not (Test-Path -LiteralPath $mirror)) {
         if ($a -eq $b) { Pass "in sync: $name" }
         else { Fail "DRIFTED: artwork\tools\$name differs from tools\$name (re-copy it)" }
     }
+}
+
+Head 'vendored weather module (weather/ is its own repo)'
+# weather/ is a separate git repository, so this repo ships a COPY of it at
+# device/lib/weather.sh: the device updater copies device/ verbatim and never
+# fetches a second repository at runtime.
+#
+# Drift here is the expensive kind. The published library and the code running
+# on the device quietly stop matching, and every other check in this file still
+# passes -- because they all read the vendored copy, not the original.
+#
+# sync-weather.ps1 owns the definition of "in sync"; it is run as a CHILD
+# process on purpose, because it calls exit and would otherwise terminate this
+# whole script on the first mismatch.
+$syncTool = Join-Path $root 'tools\sync-weather.ps1'
+$srcWeather = Join-Path $root 'weather\weather.sh'
+if (-not (Test-Path -LiteralPath $syncTool)) {
+    Fail 'tools\sync-weather.ps1 is missing'
+} elseif (-not (Test-Path -LiteralPath $srcWeather)) {
+    Write-Host '  (weather/ is not checked out -- cannot compare)' -ForegroundColor Yellow
+} else {
+    $out = & powershell -NoProfile -File $syncTool -Check 2>&1
+    $last = $out | Select-Object -Last 1
+    if ($LASTEXITCODE -eq 0) { Pass $last } else { Fail $last }
 }
 
 Head 'deployed payload (if the Kindle is mounted)'

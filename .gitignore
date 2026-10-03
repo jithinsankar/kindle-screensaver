@@ -15,6 +15,16 @@ preview/*.png
 # must stay committed *there*.
 artwork/
 
+# weather/ is its OWN git repository too, for the same reason: it is a
+# self-contained shell library that knows nothing about e-ink, clocks or layout,
+# and it is published separately. Committing it here would record a bare gitlink
+# and the archive would contain an empty directory.
+#
+# This repo consumes it as a VENDORED COPY at device/lib/weather.sh, which IS
+# committed here because it is part of the device payload. tools/sync-weather.ps1
+# refreshes that copy and verify.ps1 fails if the two ever drift apart.
+weather/
+
 # Scratch output from tools/make-animation.ps1 before it is meant to be committed.
 *_tmp/
 *.tmp

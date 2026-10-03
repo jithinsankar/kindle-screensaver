@@ -47,8 +47,15 @@ check "section: current has humid"  "$(json_num "$CUR" relative_humidity_2m)" "6
 check "section: daily max"          "$(json_num "$DAY" temperature_2m_max)"   "31.4"
 check "section: daily min"          "$(json_num "$DAY" temperature_2m_min)"   "21.6"
 
-# the unit block must NOT be mistaken for the values
-check "units not parsed as temp"    "$(json_section "$J" current_units | json_num - temperature_2m)" ""
+# the unit block must NOT be mistaken for the values.
+#
+# NOTE: this used to be written `json_section ... | json_num - temperature_2m`,
+# which reads as if it pipes the section in. It does not -- json_num takes its
+# blob as $1, so `-` was parsed as the blob and the check returned "" every
+# single time. It passed for the wrong reason and would have kept passing even
+# if the parser broke. The section has to be passed as an argument.
+check "units block yields no number" "$(json_num "$(json_section "$J" current_units)" temperature_2m)" ""
+check "values block does yield one"  "$(json_num "$(json_section "$J" current)" temperature_2m)"       "27.5"
 
 # negative temperatures
 JN='{"current":{"temperature_2m":-7.4,"weather_code":71},"daily":{"temperature_2m_max":[-2.5],"temperature_2m_min":[-11.2]}}'
